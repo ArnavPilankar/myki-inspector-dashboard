@@ -1,0 +1,24 @@
+{
+  "users": {
+    "admin": {
+      "password": "admin123",
+      "role": "admin",
+      "name": "System Administrator"
+    },
+    "inspector": {
+      "password": "myki2024",
+      "role": "inspector", 
+      "name": "Fare Inspector"
+    },
+    "analyst": {
+      "password": "analyst2024",
+      "role": "analyst",
+      "name": "Data Analyst"
+    },
+    "viewer": {
+      "password": "viewer2024",
+      "role": "viewer",
+      "name": "Dashboard Viewer"
+    }
+  }
+}
