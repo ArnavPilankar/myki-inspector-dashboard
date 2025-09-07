@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Myki Inspector Portal{% endblock %}
+
+{% block content %}
+<!-- Admin User Management Interface -->
+<!-- Allows administrators to add, view, and delete users from the system -->
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="text-white">
+                    <i class="fas fa-users me-2"></i>User Management
+                </h2>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Messages - Display success/error notifications -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Add User Form - Create new users with role assignment -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-plus me-2"></i>Add New User
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('add_user_route') }}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label text-white">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="password" class="form-label text-white">Password</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="role" class="form-label text-white">Role</label>
+                                    <select class="form-select" id="role" name="role" required>
+                                        <option value="">Select Role</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="inspector">Inspector</option>
+                                        <option value="analyst">Analyst</option>
+                                        <option value="viewer">Viewer</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label text-white">Full Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus me-1"></i>Add User
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users List - Display all current users with management options -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Current Users
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for username, user_data in users.items() %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ username }}</strong>
+                                        {% if username == session.username %}
+                                            <span class="badge bg-primary ms-2">You</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user_data.name }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if user_data.role == 'admin' %}bg-danger
+                                            {% elif user_data.role == 'inspector' %}bg-warning
+                                            {% elif user_data.role == 'analyst' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ user_data.role.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if username != session.username %}
+                                        <a href="{{ url_for('delete_user_route', username=username) }}" 
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('Are you sure you want to delete user {{ username }}?')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">Cannot delete own account</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Information - Explain different user permission levels -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Role Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <span class="badge bg-danger fs-6 mb-2">Admin</span>
+                                <p class="text-muted small">Full system access, user management</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <span class="badge bg-warning fs-6 mb-2">Inspector</span>
+                                <p class="text-muted small">Dashboard access, fare monitoring</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <span class="badge bg-info fs-6 mb-2">Analyst</span>
+                                <p class="text-muted small">Data analysis and reporting</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <span class="badge bg-secondary fs-6 mb-2">Viewer</span>
+                                <p class="text-muted small">Read-only dashboard access</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

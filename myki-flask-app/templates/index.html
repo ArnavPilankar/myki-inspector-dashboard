@@ -1,0 +1,980 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Main Dashboard Content -->
+<!-- Displays real-time fare evasion monitoring, station analysis, and interactive maps -->
+<div class="container-fluid">
+    <!-- Priority Alert Section - Shows highest risk station -->
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <div class="data-timestamp">
+                <small class="text-muted fw-bold">
+                    <i class="fas fa-exclamation-triangle me-1" style="color: #FF4444;"></i>
+                    {% if evasion_analysis %}
+                        High alert at {{ evasion_analysis[0].station }}
+                    {% else %}
+                        No priority alerts
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Card Styles -->
+    <style>
+        .alert-card {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-left: 4px solid #6c757d;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .alert-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .alert-card.low-risk {
+            background: #ffffff;
+            border-left-color: #28a745;
+        }
+        
+        .alert-card.medium-risk {
+            background: #ffffff;
+            border-left-color: #ffc107;
+        }
+        
+        .alert-card.high-risk {
+            background: #ffffff;
+            border-left-color: #dc3545;
+        }
+        
+        .alert-card .card-title {
+            color: #333333;
+            font-weight: 600;
+        }
+        
+        .alert-card .fw-bold {
+            color: #333333;
+        }
+        
+        .alert-card small {
+            color: #666666 !important;
+        }
+        
+        .alert-card .text-danger {
+            color: #dc3545 !important;
+        }
+    </style>
+
+    <!-- Top Priority Stations Carousel - Rotating display of high-risk stations and key metrics -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="carousel-container" style="position: relative; overflow: hidden; border: none; border-radius: 10px; padding: 10px; min-height: 300px; background: #1A1A1A;">
+                <div class="carousel-wrapper" id="priorityCarousel" style="display: flex; transition: transform 0.5s ease; width: 200%; height: 250px; align-items: center;">
+                    <!-- Slide 1: Priority Stations -->
+                    <div class="carousel-slide" style="width: 50%; display: flex; align-items: center; justify-content: space-around;">
+                        {% for i in range(4) %}
+                        <div style="width: 22%; height: 200px; background: #2D2D2D; border: 2px solid #00FF00; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; box-shadow: 0 4px 8px rgba(0,255,0,0.3);">
+                            <div class="metric-icon priority" style="font-size: 2rem; margin-bottom: 15px;">
+                                <i class="fas fa-exclamation-triangle" style="color: #FF4444;"></i>
+                            </div>
+                            {% if evasion_analysis and evasion_analysis[i] %}
+                            <div class="metric-value" style="font-size: 1.8rem; font-weight: 700; color: #00FF00; margin-bottom: 8px;">{{ evasion_analysis[i].station.split(' ')[0] }}</div>
+                            <div class="metric-label" style="font-size: 0.9rem; color: #FFFFFF; margin-bottom: 8px;">{{ "%.1f"|format(evasion_analysis[i].evasion_rate * 100) }}% Evasion</div>
+                            <div style="color: #FF4444; font-size: 0.8rem; font-weight: 600;">${{ "{:,.0f}".format(evasion_analysis[i].expected_fines) }}</div>
+                            {% else %}
+                            <div class="metric-value" style="font-size: 1.8rem; font-weight: 700; color: #00FF00;">-</div>
+                            <div class="metric-label" style="font-size: 0.9rem; color: #FFFFFF;">No Data</div>
+                            <div style="color: #666; font-size: 0.8rem;">-</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Slide 2: Statistics -->
+                    <div class="carousel-slide" style="width: 50%; display: flex; align-items: center; justify-content: space-around;">
+                        <div style="width: 22%; height: 200px; background: #2D2D2D; border: 2px solid #00FF00; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; box-shadow: 0 4px 8px rgba(0,255,0,0.3);">
+                            <div class="metric-icon evasion" style="font-size: 2rem; margin-bottom: 15px;">
+                                <i class="fas fa-exclamation-triangle" style="color: #FF4444;"></i>
+                            </div>
+                            <div class="metric-value" data-value="{{ total_evasion|int }}" style="font-size: 1.8rem; font-weight: 700; color: #00FF00; margin-bottom: 8px;">{{ "{:,}".format(total_evasion|int) }}</div>
+                            <div class="metric-label" style="font-size: 0.9rem; color: #FFFFFF;">Total Evasions</div>
+                        </div>
+                        <div style="width: 22%; height: 200px; background: #2D2D2D; border: 2px solid #00FF00; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; box-shadow: 0 4px 8px rgba(0,255,0,0.3);">
+                            <div class="metric-icon evasion" style="font-size: 2rem; margin-bottom: 15px;">
+                                <i class="fas fa-map-marker-alt" style="color: #00FF00;"></i>
+                            </div>
+                            <div class="metric-value" style="font-size: 1.8rem; font-weight: 700; color: #00FF00; margin-bottom: 8px;">{{ evasion_analysis|length }}</div>
+                            <div class="metric-label" style="font-size: 0.9rem; color: #FFFFFF;">Priority Stations</div>
+                        </div>
+                        <div style="width: 22%; height: 200px; background: #2D2D2D; border: 2px solid #00FF00; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; box-shadow: 0 4px 8px rgba(0,255,0,0.3);">
+                            <div class="metric-icon fines" style="font-size: 2rem; margin-bottom: 15px;">
+                                <i class="fas fa-bell" style="color: #FF4444;"></i>
+                            </div>
+                            <div class="metric-value" style="font-size: 1.8rem; font-weight: 700; color: #00FF00; margin-bottom: 8px;">{{ active_alerts|int }}</div>
+                            <div class="metric-label" style="font-size: 0.9rem; color: #FFFFFF;">Active Alerts</div>
+                        </div>
+                        <div style="width: 22%; height: 200px; background: #2D2D2D; border: 2px solid #00FF00; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; box-shadow: 0 4px 8px rgba(0,255,0,0.3);">
+                            <div class="metric-icon compliance" style="font-size: 2rem; margin-bottom: 15px;">
+                                <i class="fas fa-percentage" style="color: #00FF00;"></i>
+                            </div>
+                            <div class="metric-value" style="font-size: 1.8rem; font-weight: 700; color: #00FF00; margin-bottom: 8px;">{{ "%.1f"|format(stats.compliance_rate|float) }}%</div>
+                            <div class="metric-label" style="font-size: 0.9rem; color: #FFFFFF;">Compliance Rate</div>
+                        </div>
+                    </div>
+                </div>
+                
+                
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Map and Chart Row -->
+    <div class="row mb-5">
+        <!-- Station Map -->
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-map-marked-alt me-2"></i>
+                        Station Evasion Map
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="map-container" style="height: 400px; position: relative;">
+                        <div id="stationMap" style="height: 100%; width: 100%; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fines Overview Chart -->
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Fines Overview
+                    </h5>
+                </div>
+                <div class="card-body" style="background-color: #1A1A1A;">
+                    <div class="chart-container" style="background-color: white; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center; height: 310px;">
+                        <canvas id="complianceChart" height="300"></canvas>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        {% if chart_data %}
+                            {% set top_station = chart_data[0] %}
+                            <!-- Highest Evasion Card -->
+                            <div style="background-color: #FFFFFF; border-radius: 8px; padding: 12px; border: 1px solid #E0E0E0; flex: 1; text-align: center;">
+                                <div style="color: #666666; font-size: 0.75rem; margin-bottom: 4px;">Highest Evasion</div>
+                                <div style="color: #333333; font-weight: 600; font-size: 0.85rem;">{{ top_station.station }}</div>
+                                <div style="color: #333333; font-weight: 600; font-size: 0.8rem;">{{ "%.1f"|format(top_station.avg_evasion_rate * 100) }}%</div>
+                            </div>
+                            
+                            <!-- Total Fines Card -->
+                            <div style="background-color: #FFFFFF; border-radius: 8px; padding: 12px; border: 1px solid #E0E0E0; flex: 1; text-align: center;">
+                                <div style="color: #666666; font-size: 0.75rem; margin-bottom: 4px;">Total Fines</div>
+                                <div style="color: #333333; font-weight: 600; font-size: 0.85rem;">${{ "{:,.0f}".format(chart_data|sum(attribute='total_evasion') * 250) }}</div>
+                            </div>
+                            
+                            <!-- High Risk Stations Card -->
+                            {% set high_risk_count = chart_data|selectattr('avg_evasion_rate', '>', 0.2)|list|length %}
+                            <div style="background-color: #FFFFFF; border-radius: 8px; padding: 12px; border: 1px solid #E0E0E0; flex: 1; text-align: center;">
+                                <div style="color: #666666; font-size: 0.75rem; margin-bottom: 4px;">High Risk Stations</div>
+                                <div style="color: #333333; font-weight: 600; font-size: 0.85rem;">{{ high_risk_count }}</div>
+                            </div>
+                        {% else %}
+                            <div style="background-color: #FFFFFF; border-radius: 8px; padding: 12px; border: 1px solid #E0E0E0; flex: 1; text-align: center;">
+                                <div style="color: #666666; font-size: 0.85rem;">No chart data available</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+    </div>
+
+    <!-- Priority Alerts Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                        Priority Alerts
+                        <span class="badge badge-danger ms-2">{{ evasion_analysis|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body" style="background-color: #1A1A1A;">
+                    {% if evasion_analysis %}
+                    <div class="row">
+                        {% for alert in evasion_analysis[:6] %}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="alert-card {{ 'low-risk' if alert.severity == 'LOW' else 'medium-risk' if alert.severity == 'MEDIUM' else 'high-risk' }} clickable">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-train me-2" style="color: #333333 !important;"></i>
+                                            <h6 class="card-title mb-0">{{ alert.station }}</h6>
+                                        </div>
+                                        <span class="badge {% if alert.severity == 'HIGH' %}badge-danger{% elif alert.severity == 'MEDIUM' %}badge-warning{% else %}badge-success{% endif %}">
+                                            {{ alert.severity }}
+                                        </span>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <small>Non-compliance</small>
+                                            <div class="fw-bold text-danger">{{ "%.1f"|format(alert.evasion_rate * 100) }}%</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <small>Expected Fines</small>
+                                            <div class="fw-bold text-danger">${{ "{:,.0f}".format(alert.expected_fines) }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar {% if alert.evasion_rate > 0.6 %}bg-danger{% elif alert.evasion_rate > 0.3 %}bg-warning{% else %}bg-success{% endif %}" 
+                                             style="width: {{ (alert.evasion_rate * 100)|round }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                        <h5>No Priority Alerts</h5>
+                        <p style="color: #b0b0b0 !important;">All stations are operating within normal compliance parameters.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Station Analysis Table -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar style="color: #000000 !important;" me-2"></i>
+                        Station Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">Station</th>
+                                    <th class="text-center">Type</th>
+                                    <th class="text-center">Non-Compliance Rate</th>
+                                    <th class="text-center">Daily Passengers</th>
+                                    <th class="text-center">Expected Fines</th>
+                                    <th class="text-center">Peak Hours</th>
+                                    <th class="text-center">Risk Level</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for station in all_stations %}
+                                <tr class="clickable" style="cursor: pointer;" onclick="showStationDetails('{{ station.Stop_name }}')">
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-train me-2" style="color: #000000 !important;"></i>
+                                            <strong>{{ station.Stop_name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge badge-info">Train</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-bold {% if station.avg_evasion_rate > 0.2 %}text-danger{% elif station.avg_evasion_rate > 0.15 %}text-warning{% else %}text-success{% endif %}">
+                                            {{ "%.1f"|format(station.avg_evasion_rate * 100) }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center">{{ "{:,.0f}".format(station.Pax_weekday) }}</td>
+                                    <td class="text-center" style="color: #000000 !important;">${{ "{:,.0f}".format(station.total_evasion * 250) }}</td>
+                                    <td class="text-center">7-9 AM, 5-7 PM</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if station.avg_evasion_rate > 0.2 %}badge-danger{% elif station.avg_evasion_rate > 0.15 %}badge-warning{% else %}badge-success{% endif %}">
+                                            {% if station.avg_evasion_rate > 0.2 %}HIGH{% elif station.avg_evasion_rate > 0.15 %}MEDIUM{% else %}LOW{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <div class="card">
+                <div class="card-body">
+                    <p style="color: #b0b0b0 !important;" class="mb-0">
+                        <i class="fas fa-train me-1"></i>
+                        Data updated every 24 hours • Last update: 2024-09-06
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Number formatting function
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+}
+
+// Carousel functionality
+let currentSlide = 0;
+const totalSlides = 2; // Priority Stations and Statistics
+
+function moveCarousel(direction) {
+    const carousel = document.getElementById('priorityCarousel');
+    const indicators = document.querySelectorAll('.carousel-indicator');
+    
+    currentSlide += direction;
+    
+    // Handle boundaries (only 2 slides: 0 and 1)
+    if (currentSlide < 0) {
+        currentSlide = totalSlides - 1;
+    } else if (currentSlide >= totalSlides) {
+        currentSlide = 0;
+    }
+    
+    // Move carousel (each slide is 50% width, so translate by 50% per slide)
+    const translateX = -currentSlide * 50;
+    carousel.style.transform = `translateX(${translateX}%)`;
+    
+    // Update indicators
+    indicators.forEach((indicator, index) => {
+        indicator.style.background = index === currentSlide ? 'rgba(0, 255, 0, 0.8)' : 'rgba(0, 255, 0, 0.3)';
+    });
+}
+
+function goToSlide(slideIndex) {
+    const carousel = document.getElementById('priorityCarousel');
+    const indicators = document.querySelectorAll('.carousel-indicator');
+    
+    currentSlide = slideIndex;
+    
+    // Move carousel (each slide is 50% width, so translate by 50% per slide)
+    const translateX = -currentSlide * 50;
+    carousel.style.transform = `translateX(${translateX}%)`;
+    
+    // Update indicators
+    indicators.forEach((indicator, index) => {
+        indicator.style.background = index === currentSlide ? 'rgba(0, 255, 0, 0.8)' : 'rgba(0, 255, 0, 0.3)';
+    });
+}
+
+// Auto-advance carousel every 5 seconds
+function startCarouselAutoAdvance() {
+    setInterval(() => {
+        moveCarousel(1);
+    }, 5000);
+}
+
+// Station details modal function
+function showStationDetails(stationName) {
+    // Find station data
+    const stationData = allStations.find(station => station.station === stationName);
+    if (!stationData) {
+        alert('Station data not found for: ' + stationName);
+        return;
+    }
+    
+    // Create modal content
+    const modalContent = `
+        <div class="modal fade" id="stationModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content" style="background: var(--dark); color: var(--white); border: 2px solid var(--primary);">
+                    <div class="modal-header" style="border-bottom: 1px solid var(--primary);">
+                        <h5 class="modal-title">
+                            <i class="fas fa-train me-2" style="color: var(--primary);"></i>
+                            ${stationName} - Station Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter: invert(1);"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 style="color: var(--primary);">Station Information</h6>
+                                <p><strong>Type:</strong> ${stationData.type || 'Metropolitan'}</p>
+                                <p><strong>Daily Passengers:</strong> ${formatNumber(stationData.dailyPax || 0)}</p>
+                                <p><strong>Annual Passengers:</strong> ${formatNumber(stationData.annualPax || 0)}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 style="color: var(--primary);">Compliance Data</h6>
+                                <p><strong>Non-Compliance Rate:</strong> ${(stationData.evasionRate || 0).toFixed(1)}%</p>
+                                <p><strong>Expected Fines:</strong> $${formatNumber(stationData.expectedFines || 0)}</p>
+                                <p><strong>Risk Level:</strong> 
+                                    <span class="badge ${(stationData.evasionRate || 0) > 30 ? 'bg-danger' : (stationData.evasionRate || 0) > 15 ? 'bg-warning' : 'bg-success'}">
+                                        ${(stationData.evasionRate || 0) > 30 ? 'High Risk' : (stationData.evasionRate || 0) > 15 ? 'Medium Risk' : 'Low Risk'}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('stationModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('stationModal'));
+    modal.show();
+}
+
+// Initialize Map and Chart.js
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure carousel starts at slide 0
+    const carousel = document.getElementById('priorityCarousel');
+    if (carousel) {
+        carousel.style.transform = 'translateX(0%)';
+    }
+    
+    // Format large numbers in metric values
+    const metricValues = document.querySelectorAll('.metric-value[data-value]');
+    metricValues.forEach(element => {
+        const value = parseInt(element.getAttribute('data-value'));
+        if (value >= 1000) {
+            element.textContent = formatNumber(value);
+        }
+    });
+    
+    
+    // Test if elements exist
+    const mapElement = document.getElementById('stationMap');
+    const chartElement = document.getElementById('complianceChart');
+    
+    
+    // Initialize Station Map
+    setTimeout(() => {
+        initializeStationMap();
+    }, 1000);
+    
+    // Initialize Chart
+    setTimeout(() => {
+        initializeChart();
+    }, 1000);
+    
+    // Add pulse animation to metric cards
+    document.querySelectorAll('.metric-card').forEach((card, index) => {
+        setTimeout(() => {
+            card.classList.add('pulse');
+        }, index * 200);
+    });
+    
+    // Start carousel auto-advance
+    startCarouselAutoAdvance();
+    
+    
+});
+
+function initializeStationMap() {
+    try {
+        
+        // Check if Leaflet is loaded
+        if (typeof L === 'undefined') {
+            createFallbackMap();
+            return;
+        }
+        
+        
+        // Melbourne center coordinates
+        const melbourneCenter = [-37.8136, 144.9631];
+        
+        // Initialize map with mobile-optimized settings
+        const map = L.map('stationMap', {
+            zoomControl: true,
+            dragging: true,
+            touchZoom: true,
+            doubleClickZoom: true,
+            scrollWheelZoom: true,
+            boxZoom: true,
+            keyboard: true,
+            tap: true
+        }).setView(melbourneCenter, 10);
+        
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Station data from template - use all_stations for better coordinate matching
+        const stationData = {{ all_stations | tojson }};
+        const priorityAlerts = {{ evasion_analysis | tojson }};
+        
+        if (!stationData || stationData.length === 0) {
+            console.warn('⚠️ No station data available for map');
+            document.getElementById('stationMap').innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No station data available</div>';
+            return;
+        }
+        
+        // Color function based on evasion rate
+        // Check if station is in priority alerts
+        function isPriorityAlert(stationName) {
+            return priorityAlerts.some(alert => alert.station === stationName);
+        }
+        
+        function getStationColor(evasionRate, stationName) {
+            // Priority alert stations are always red
+            if (isPriorityAlert(stationName)) {
+                return '#FF0000'; // Bright Red for priority alerts
+            }
+            
+            // Regular color coding based on evasion rate
+            if (evasionRate <= 0.15) return '#00FF00'; // Neon Green (low risk)
+            if (evasionRate <= 0.25) return '#FFD700'; // Gold (medium risk)
+            return '#FF4500'; // Red-Orange (high risk)
+        }
+        
+        // Size function based on passenger volume
+        function getStationSize(totalExpected) {
+            const minSize = 8;
+            const maxSize = 20;
+            const minPassengers = 100;
+            const maxPassengers = 5000;
+            
+            const normalized = Math.min(Math.max((totalExpected - minPassengers) / (maxPassengers - minPassengers), 0), 1);
+            return minSize + (normalized * (maxSize - minSize));
+        }
+        
+        // Station coordinates from CSV data
+        const stationCoordinates = {{ station_coordinates | tojson }};
+        
+        // Add markers for each station
+        let markersAdded = 0;
+        
+        stationData.forEach((station, index) => {
+            try {
+                // Get station name - all_stations uses Stop_name
+                const stationName = station.Stop_name || station.station || station.name || 'Unknown';
+                
+                // Get actual coordinates for the station, or use a default Melbourne location
+                let lat, lng;
+                if (stationCoordinates[stationName]) {
+                    lat = stationCoordinates[stationName].lat;
+                    lng = stationCoordinates[stationName].lng;
+                } else {
+                    // Use a default Melbourne area location for unknown stations
+                    lat = -37.8136 + (Math.random() - 0.5) * 0.3;
+                    lng = 144.9631 + (Math.random() - 0.5) * 0.6;
+                }
+                
+                // Calculate evasion rate from available data or use default
+                const evasionRate = station.avg_evasion_rate || 0.05; // Default 5% if no data
+                const color = getStationColor(evasionRate, stationName);
+                const size = getStationSize(station.Pax_annual || 1000); // Use annual passengers for size
+                
+                const marker = L.circleMarker([lat, lng], {
+                    radius: size,
+                    fillColor: color,
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map);
+                
+                // Debug: log first few markers
+                if (markersAdded < 5) {
+                }
+                
+                // Add popup with station details
+                marker.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <h6 style="margin: 0 0 8px 0; color: #1f2937;">${stationName}</h6>
+                        <div style="font-size: 12px; color: #6b7280;">
+                            <div style="margin-bottom: 4px;">
+                                <strong>Evasion Rate:</strong> 
+                                <span style="color: ${color}; font-weight: 600;">
+                                    ${(evasionRate * 100).toFixed(1)}%
+                                </span>
+                            </div>
+                            <div style="margin-bottom: 4px;">
+                                <strong>Annual Passengers:</strong> ${(station.Pax_annual || 0).toLocaleString()}
+                            </div>
+                            <div style="margin-bottom: 4px;">
+                                <strong>Weekday Passengers:</strong> ${(station.Pax_weekday || 0).toLocaleString()}
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                                <small style="color: #9ca3af;">
+                                    Click for more details
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                
+                markersAdded++;
+            } catch (error) {
+                console.error(`Error adding marker for station ${index}:`, error);
+            }
+        });
+        
+        
+        
+    } catch (error) {
+        console.error('❌ Error initializing map:', error);
+        document.getElementById('stationMap').innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Error loading map. Please refresh the page.</div>';
+    }
+}
+
+function createFallbackMap() {
+    
+    const stationData = {{ evasion_summary | tojson }};
+    const mapContainer = document.getElementById('stationMap');
+    
+    if (!stationData || stationData.length === 0) {
+        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No station data available</div>';
+        return;
+    }
+    
+    // Create a simple grid-based map
+    let mapHTML = '<div style="position: relative; width: 100%; height: 100%; background: #f8f9fa; border-radius: 8px; overflow: hidden;">';
+    mapHTML += '<div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px;">Melbourne Station Map</div>';
+    
+    // Melbourne train station coordinates for fallback map positioning
+    const stationPositions = {
+        'Flinders Street': {x: 50, y: 60},
+        'Southern Cross': {x: 45, y: 60},
+        'Melbourne Central': {x: 48, y: 65},
+        'Parliament': {x: 52, y: 65},
+        'Flagstaff': {x: 46, y: 65},
+        'Richmond': {x: 55, y: 70},
+        'South Yarra': {x: 58, y: 75},
+        'Prahran': {x: 60, y: 80},
+        'Windsor': {x: 62, y: 85},
+        'Balaclava': {x: 64, y: 90},
+        'Clayton': {x: 70, y: 95},
+        'Dandenong': {x: 75, y: 100},
+        'Frankston': {x: 80, y: 105},
+        'Ringwood': {x: 65, y: 100},
+        'Lilydale': {x: 60, y: 105},
+        'Belgrave': {x: 55, y: 110},
+        'Glen Waverley': {x: 68, y: 90},
+        'Alamein': {x: 66, y: 85},
+        'Cranbourne': {x: 78, y: 95},
+        'Pakenham': {x: 82, y: 100}
+    };
+    
+    // Add station markers
+    stationData.slice(0, 20).forEach((station, index) => {
+        let x, y;
+        if (stationPositions[station.station]) {
+            x = stationPositions[station.station].x;
+            y = stationPositions[station.station].y;
+        } else {
+            // Fallback to grid layout
+            x = 20 + (index % 5) * 18;
+            y = 60 + Math.floor(index / 5) * 15;
+        }
+        
+        const evasionRate = station.avg_evasion_rate || 0;
+        let color = '#00FF00'; // Neon Green
+        if (evasionRate > 0.6) color = '#FF4500'; // Red-Orange
+        else if (evasionRate > 0.3) color = '#FFD700'; // Gold
+        
+        const size = Math.max(8, Math.min(20, (station.total_expected || 0) / 200));
+        
+        mapHTML += `
+            <div style="position: absolute; left: ${x}%; top: ${y}px; 
+                        width: ${size}px; height: ${size}px; 
+                        background: ${color}; border: 2px solid white; 
+                        border-radius: 50%; cursor: pointer; 
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);"
+                 title="${station.station} - ${(evasionRate * 100).toFixed(1)}% evasion">
+            </div>
+        `;
+    });
+    
+    mapHTML += '</div>';
+    mapContainer.innerHTML = mapHTML;
+    
+}
+
+function initializeChart() {
+    try {
+        
+        // Check if Chart.js is loaded
+        if (typeof Chart === 'undefined') {
+            console.error('❌ Chart.js library not loaded');
+            console.error('❌ Available global objects:', Object.keys(window).filter(key => key.includes('chart') || key.includes('Chart')));
+            document.getElementById('complianceChart').parentElement.innerHTML = '<div style="padding: 20px; text-align: center; color: #ffffff;">Chart.js library not loaded. Please refresh the page.</div>';
+            return;
+        }
+        
+        const chartElement = document.getElementById('complianceChart');
+        if (!chartElement) {
+            console.error('❌ Chart element not found');
+            console.error('❌ Available elements with "chart" in ID:', document.querySelectorAll('[id*="chart"]'));
+            return;
+        }
+        
+        
+        
+        const ctx = chartElement.getContext('2d');
+        
+        // Prepare chart data
+        const chartData = {{ chart_data | tojson }};
+        
+        if (!chartData || chartData.length === 0) {
+            console.warn('⚠️ No chart data available');
+            console.warn('⚠️ Chart data value:', chartData);
+            chartElement.parentElement.innerHTML = '<div style="padding: 20px; text-align: center; color: #ffffff;">No data available for chart</div>';
+            return;
+        }
+        
+        
+        const labels = chartData.slice(0, 9).map(station => 
+            station.station.split(' ')[0] + (station.station.split(' ')[1] ? ' ' + station.station.split(' ')[1] : '')
+        );
+        
+        const nonComplianceData = chartData.slice(0, 9).map(station => 
+            Math.round((station.avg_evasion_rate || 0) * (station.total_expected || 0))
+        );
+        
+        const expectedFinesData = chartData.slice(0, 9).map(station => 
+            station.total_evasion || 0
+        );
+        
+        
+        // Validate processed data
+        const hasValidLabels = labels.length > 0 && labels.every(label => label && label.length > 0);
+        const hasValidNonCompliance = nonComplianceData.length > 0 && nonComplianceData.every(val => !isNaN(val));
+        const hasValidExpectedFines = expectedFinesData.length > 0 && expectedFinesData.every(val => !isNaN(val));
+        
+    
+    
+    const chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Non-Compliant Passengers',
+                data: nonComplianceData,
+                backgroundColor: nonComplianceData.map(value => {
+                    if (value > 100) return 'rgba(255, 68, 68, 0.8)'; // High risk - Red (>100 non-compliant)
+                    if (value > 50) return 'rgba(255, 165, 0, 0.8)'; // Medium risk - Amber (>50 non-compliant)
+                    return 'rgba(0, 255, 0, 0.8)'; // Low risk - Green (≤50 non-compliant)
+                }),
+                borderColor: nonComplianceData.map(value => {
+                    if (value > 100) return 'rgba(255, 68, 68, 1)';
+                    if (value > 50) return 'rgba(255, 165, 0, 1)';
+                    return 'rgba(0, 255, 0, 1)';
+                }),
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false,
+            }, {
+                label: 'Expected Fines',
+                data: expectedFinesData,
+                backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                borderColor: 'rgba(255, 0, 0, 1)',
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            backgroundColor: 'white',
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        color: '#333333'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#333333',
+                    bodyColor: '#333333',
+                    borderColor: 'rgba(0, 0, 0, 0.2)',
+                    borderWidth: 2,
+                    cornerRadius: 12,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    padding: 12,
+                    callbacks: {
+                        title: function(context) {
+                            return 'Station: ' + context[0].label;
+                        },
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                const riskLevel = context.parsed.y > 100 ? 'High Risk' : context.parsed.y > 50 ? 'Medium Risk' : 'Low Risk';
+                                return [
+                                    'Non-Compliant Passengers: ' + Math.round(context.parsed.y),
+                                    'Risk Level: ' + riskLevel
+                                ];
+                            } else {
+                                return 'Expected Fines: $' + formatNumber(context.parsed.y);
+                            }
+                        },
+                        afterBody: function(context) {
+                            if (context[0].datasetIndex === 0) {
+                                const passengers = context[0].parsed.y;
+                                if (passengers > 100) {
+                                    return '⚠️ Immediate attention required';
+                                } else if (passengers > 50) {
+                                    return '⚡ Monitor closely';
+                                } else {
+                                    return '✅ Within acceptable range';
+                                }
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Non-Compliant Passengers',
+                        color: '#333333',
+                        font: {
+                            size: 14,
+                            weight: '600'
+                        }
+                    },
+                    ticks: {
+                        color: '#666666'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Expected Fines',
+                        color: '#333333',
+                        font: {
+                            size: 14,
+                            weight: '600'
+                        }
+                    },
+                    ticks: {
+                        color: '#666666'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: '#666666'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                }
+            }
+        }
+    });
+    
+    
+    // Add refresh functionality
+    const refreshButton = document.querySelector('.btn-primary');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+            location.reload();
+        });
+    }
+    
+    } catch (error) {
+        console.error('❌ Error initializing chart:', error);
+        console.error('❌ Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
+        createSimpleChart();
+    }
+}
+
+function createSimpleChart() {
+    const chartElement = document.getElementById('complianceChart');
+    if (!chartElement) return;
+    
+    const chartData = {{ chart_data | tojson }};
+    if (!chartData || chartData.length === 0) {
+        chartElement.parentElement.innerHTML = '<div style="padding: 20px; text-align: center; color: #ffffff;">No data available for chart</div>';
+        return;
+    }
+    
+    let chartHTML = '<div style="padding: 20px; background: #2d2d2d; border-radius: 8px;">';
+    chartHTML += '<h6 style="color: #ffffff; margin-bottom: 15px; text-align: center;">Fines Overview</h6>';
+    
+    chartData.slice(0, 9).forEach((station, index) => {
+        const evasionRate = Math.round((station.avg_evasion_rate || 0) * 100);
+        const barWidth = Math.min(evasionRate * 2, 200);
+        const color = evasionRate <= 30 ? '#00FF00' : evasionRate <= 60 ? '#FFD700' : '#FF4500';
+        
+        chartHTML += `
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: #00FF00; font-size: 12px; font-weight: 500;">${station.station.split(' ')[0]}</span>
+                    <span style="color: #ffffff; font-size: 12px; font-weight: 600;">${evasionRate}%</span>
+                </div>
+                <div style="background: #1a1a1a; height: 10px; border-radius: 5px; overflow: hidden; border: 1px solid #404040;">
+                    <div style="background: ${color}; height: 100%; width: ${barWidth}px; transition: width 0.3s ease; border-radius: 4px;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    chartHTML += '</div>';
+    chartElement.parentElement.innerHTML = chartHTML;
+}
+</script>
+{% endblock %}
